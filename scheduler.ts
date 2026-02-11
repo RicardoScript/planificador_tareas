@@ -72,45 +72,160 @@ export function generatePlan(
 
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   
-  // Filter blocks for target day and not fixed (available time)
-  const availableBlocks = blocks
-    .filter(b => b.dayOfWeek === dayOfWeek && !b.isFixed)
+  // 1. Get ALL blocks for target day (fixed and available)
+  const dayBlocks = blocks
+    .filter(b => b.dayOfWeek === dayOfWeek)
     .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
   
-  // Get fixed blocks (classes, etc.)
-  const fixedBlocks = blocks.filter(b => b.dayOfWeek === dayOfWeek && b.isFixed);
+  // 2. Identify occupied time ranges from Fixed Blocks (Classes)
+  const occupiedRanges: { start: number; end: number; title: string }[] = [];
   
-  // Priority queue by urgency
-  const pendingTasks = sortByUrgency(tasks, now);
-  
+  dayBlocks.forEach(block => {
+    if (block.isFixed) {
+      occupiedRanges.push({
+        start: timeToMinutes(block.startTime),
+        end: timeToMinutes(block.endTime),
+        title: block.title || 'Evento Fijo'
+      });
+    }
+  });
+
   const scheduledTasks: ScheduledTask[] = [];
   const conflicts: Task[] = [];
   const assignedTaskIds = new Set<string>();
+  const events: CalendarEvent[] = []; // Store events here to check against for collisions
+
+  // Helper to check collision with ANY existing event/task
+  const checkCollision = (start: number, end: number): boolean => {
+    // Check against fixed class blocks
+    if (occupiedRanges.some(r => 
+      (start < r.end && end > r.start) // Overlap
+    )) return true;
+
+    // Check against already scheduled tasks
+    if (scheduledTasks.some(st => {
+      const stStart = timeToMinutes(st.startTime);
+      const stEnd = timeToMinutes(st.endTime);
+      return (start < stEnd && end > stStart);
+    })) return true;
+
+    return false;
+  };
+
+  // 3. Process Fixed Slot Tasks FIRST
+  const fixedSlotTasks = tasks.filter(t => t.fixedSlot && t.status !== 'completed' && t.status !== 'expired');
+
+  fixedSlotTasks.forEach(task => {
+    if (!task.fixedSlot) return;
+    
+    // Convert fixed time to minutes
+    const start = timeToMinutes(task.fixedSlot.startTime);
+    const end = start + task.durationMinutes;
+    
+    // Check if it's in the past (if today)
+    if (isToday && end <= nowMinutes) {
+      conflicts.push({
+        ...task,
+        status: 'expired',
+        conflictMessage: 'El horario fijo ya pasó'
+      });
+      return;
+    }
+
+    // Check collisions
+    if (checkCollision(start, end)) {
+       conflicts.push({
+        ...task,
+        status: 'conflict',
+        conflictMessage: 'Conflicto con otro evento o clase'
+      });
+      return;
+    }
+
+    // Determine which "block" this falls into or create a virtual one?
+    // For simplicity, we just add it to scheduledTasks. 
+    // We can assign a 'custom-block' ID or find the closest block if needed for UI,
+    // but the calendar renders based on time, so blockID matches are less critical for rendering 
+    // IF we update CalendarView to render all scheduledTasks regardless of block ID.
+    // However, existing logic relies on blocks. Let's try to fit it into an available block 
+    // or create a "virtual" assignment.
+    
+    // NOTE: The current CalendarView renders tasks based on `blockId` matching `todayBlocks`.
+    // If we want to support arbitrary fixed times outside of defined "Available Blocks",
+    // we need to be careful.
+    // Strategy: fixed tasks are just scheduled tasks. We assign them a virtual block ID 
+    // if they don't fit a real one, OR we imply they are their own block.
+    
+    const startTime = minutesToTime(start);
+    const endTime = minutesToTime(end);
+
+    scheduledTasks.push({
+      taskId: task.id,
+      blockId: 'fixed-slot-' + task.id, // Virtual block ID
+      startTime,
+      endTime,
+      task: { ...task, status: 'scheduled', assignedBlockId: 'fixed-slot-' + task.id }
+    });
+    
+    assignedTaskIds.add(task.id);
+  });
+
+  // 4. Flexible Scheduling for remaining tasks
+  // Filter available blocks for regular scheduling
+  // We need to subtract time occupied by Fixed Slot tasks from these blocks
   
-  // Track remaining time in each block
-  const blockRemainingTime = new Map<string, { start: number; end: number }>();
-  availableBlocks.forEach(block => {
+  // Re-calculate available time ranges
+  // Start with defined "Available Blocks"
+  let flexibleTimeRanges: { start: number; end: number; blockId: string }[] = [];
+  
+  dayBlocks.filter(b => !b.isFixed).forEach(block => {
     let start = timeToMinutes(block.startTime);
     const end = timeToMinutes(block.endTime);
     
-    // If scheduling for today, adjust start time to not be in the past
     if (isToday) {
-      if (end <= nowMinutes) {
-        // Block is entirely in the past, skip it
-        return; 
-      }
-      if (start < nowMinutes) {
-        // Block started in the past, adjust start to now
-        start = nowMinutes;
-      }
+      if (end <= nowMinutes) return;
+      if (start < nowMinutes) start = nowMinutes;
     }
     
-    blockRemainingTime.set(block.id, { start, end });
+    if (start < end) {
+      flexibleTimeRanges.push({ start, end, blockId: block.id });
+    }
   });
-  
-  // Check for expired tasks first
+
+  // Subtract Scheduled Fixed Tasks from these ranges
+  scheduledTasks.forEach(st => {
+    const stStart = timeToMinutes(st.startTime);
+    const stEnd = timeToMinutes(st.endTime);
+    
+    const newRanges: { start: number; end: number; blockId: string }[] = [];
+    
+    flexibleTimeRanges.forEach(range => {
+      // Logic to split range if task overlaps
+      if (stEnd <= range.start || stStart >= range.end) {
+        // No overlap
+        newRanges.push(range);
+      } else {
+        // Overlap - split
+        if (stStart > range.start) {
+            newRanges.push({ start: range.start, end: stStart, blockId: range.blockId });
+        }
+        if (stEnd < range.end) {
+            newRanges.push({ start: stEnd, end: range.end, blockId: range.blockId });
+        }
+      }
+    });
+    flexibleTimeRanges = newRanges;
+  });
+
+  // Sort available ranges by time
+  flexibleTimeRanges.sort((a, b) => a.start - b.start);
+
+  // Priority queue by urgency for remaining tasks
+  const pendingTasks = sortByUrgency(tasks, now).filter(t => !assignedTaskIds.has(t.id));
+
+  // Check for expired tasks
   for (const task of pendingTasks) {
-    if (task.deadline < now) {
+     if (task.deadline < now) {
       conflicts.push({
         ...task,
         status: 'expired',
@@ -119,68 +234,51 @@ export function generatePlan(
       assignedTaskIds.add(task.id);
     }
   }
-  
-  // Greedy assignment: for each task, find first available block
+
+  // Greedy assignment for flexible tasks
   for (const task of pendingTasks) {
     if (assignedTaskIds.has(task.id)) continue;
     
     let assigned = false;
     
-    for (const block of availableBlocks) {
-      const remaining = blockRemainingTime.get(block.id);
-      if (!remaining) continue;
+    for (const range of flexibleTimeRanges) {
+      const availableMinutes = range.end - range.start;
       
-      const availableMinutes = remaining.end - remaining.start;
-      
-      // Check if task fits
       if (task.durationMinutes <= availableMinutes) {
-        // Check if deadline allows using the correct logic:
-        // Task end time must be <= Deadline (not Block end time <= Deadline)
-        if (isWorkableWithinDeadline(task, remaining.start, task.durationMinutes, targetDate)) {
-          const startTime = minutesToTime(remaining.start);
-          const endTime = minutesToTime(remaining.start + task.durationMinutes);
-          
-          scheduledTasks.push({
-            taskId: task.id,
-            blockId: block.id,
-            startTime,
-            endTime,
-            task: { ...task, status: 'scheduled', assignedBlockId: block.id }
-          });
-          
-          // Update remaining time in block
-          remaining.start += task.durationMinutes;
-          assignedTaskIds.add(task.id);
-          assigned = true;
-          break;
-        }
+         if (isWorkableWithinDeadline(task, range.start, task.durationMinutes, targetDate)) {
+            const startTime = minutesToTime(range.start);
+            const endTime = minutesToTime(range.start + task.durationMinutes);
+            
+            scheduledTasks.push({
+              taskId: task.id,
+              blockId: range.blockId,
+              startTime,
+              endTime,
+              task: { ...task, status: 'scheduled', assignedBlockId: range.blockId }
+            });
+            
+            // Consume time from this range
+            range.start += task.durationMinutes;
+            assigned = true;
+            assignedTaskIds.add(task.id);
+            break;
+         }
       }
     }
     
     if (!assigned) {
-      // Determine conflict reason
-      const maxBlockDuration = Math.max(...availableBlocks.map(b => getBlockDuration(b)), 0);
-      let conflictMessage = '¡No cabe en el horario de hoy!';
-      
-      if (task.durationMinutes > maxBlockDuration && maxBlockDuration > 0) {
-        conflictMessage = `Requiere ${task.durationMinutes}min, bloque máximo: ${maxBlockDuration}min`;
-      } else if (availableBlocks.length === 0) {
-        conflictMessage = 'No hay bloques disponibles definidos';
-      }
-      
-      conflicts.push({
+       conflicts.push({
         ...task,
         status: 'conflict',
-        conflictMessage
+        conflictMessage: 'No cabe en el horario disponible'
       });
     }
   }
   
   // Generate calendar events
-  const events: CalendarEvent[] = [];
   
   // Add fixed blocks as events
-  fixedBlocks.forEach(block => {
+  dayBlocks.filter(b => b.isFixed).forEach(block => {
     events.push({
       id: `fixed-${block.id}`,
       title: block.title || 'Evento Fijo',
@@ -202,22 +300,7 @@ export function generatePlan(
       taskId: st.taskId
     });
   });
-  
-  // Add conflict indicators for each block that has remaining time
-  // but tasks couldn't fit
-  conflicts.forEach(task => {
-    if (task.status === 'conflict' && task.conflictMessage?.includes('Requiere')) {
-      events.push({
-        id: `conflict-${task.id}`,
-        title: `⚠️ ${task.title} no cabe`,
-        type: 'study',
-        startTime: '00:00',
-        endTime: '00:00',
-        isConflict: true
-      });
-    }
-  });
-  
+
   return { scheduledTasks, conflicts, events };
 }
 

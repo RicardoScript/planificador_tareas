@@ -11,6 +11,9 @@ export interface Task {
   status: TaskStatus;
   conflictMessage?: string;
   assignedBlockId?: string;
+  fixedSlot?: {
+    startTime: string; // "HH:mm"
+  };
 }
 
 export interface TimeBlock {

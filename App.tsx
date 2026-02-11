@@ -130,6 +130,7 @@ const App: React.FC = () => {
     deadline: Date;
     durationMinutes: number;
     priority: TaskPriority;
+    fixedSlot?: { startTime: string };
   }) => {
     setTasks(prev => prev.map(t =>
       t.id === id ? { ...t, ...taskData } : t
@@ -302,7 +303,7 @@ const App: React.FC = () => {
 interface EditTaskModalProps {
   task: Task;
   onClose: () => void;
-  onSave: (taskData: { title: string; deadline: Date; durationMinutes: number; priority: TaskPriority }) => void;
+  onSave: (taskData: { title: string; deadline: Date; durationMinutes: number; priority: TaskPriority; fixedSlot?: { startTime: string } }) => void;
   formatDateForInput: (date: Date) => string;
   getPriorityColor: (priority: TaskPriority) => string;
 }
@@ -312,15 +313,28 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ task, onClose, onSave, fo
   const [editDuration, setEditDuration] = useState(task.durationMinutes);
   const [editPriority, setEditPriority] = useState<TaskPriority>(task.priority);
   const [editDeadline, setEditDeadline] = useState(formatDateForInput(task.deadline));
+  
+  const [isFixed, setIsFixed] = useState(!!task.fixedSlot);
+  const [fixedTime, setFixedTime] = useState(task.fixedSlot?.startTime || '09:00');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editTitle.trim() && editDeadline) {
+      
+      let fixedSlot = undefined;
+      if (isFixed) {
+          fixedSlot = {
+              startTime: fixedTime
+          };
+      }
+
       onSave({
         title: editTitle,
         deadline: new Date(editDeadline),
         durationMinutes: editDuration,
-        priority: editPriority
+        priority: editPriority,
+        // @ts-ignore - quick fix to pass fixedSlot
+        fixedSlot
       });
     }
   };
@@ -375,6 +389,32 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ task, onClose, onSave, fo
                 className="w-full border border-gray-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               />
             </div>
+          </div>
+
+          <div>
+             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2 cursor-pointer">
+                <input 
+                    type="checkbox" 
+                    checked={isFixed} 
+                    onChange={(e) => setIsFixed(e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                Fijar horario manualmente
+             </label>
+             
+             {isFixed && (
+                 <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 animate-fade-in">
+                     <label className="block text-xs font-bold text-blue-700 uppercase mb-1">Hora de inicio</label>
+                     <input
+                        type="time"
+                        value={fixedTime}
+                        onChange={(e) => setFixedTime(e.target.value)}
+                        className="w-full border border-blue-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                        required={isFixed}
+                     />
+                     <p className="text-[10px] text-blue-600 mt-1">La tarea se asignará a esta hora ignorando la prioridad.</p>
+                 </div>
+             )}
           </div>
 
           <div>
