@@ -1,0 +1,5 @@
+{
+  "name": "Planificador Estudiantil IA",
+  "description": "Una aplicación avanzada de gestión de tiempo y calendario para estudiantes, con detección de conflictos y generación automática de planes de estudio.",
+  "requestFramePermissions": []
+}
