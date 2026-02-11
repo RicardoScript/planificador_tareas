@@ -202,19 +202,7 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (currentView) {
-      case 'Tareas':
-        return (
-          <div className="flex-1 p-6 overflow-auto">
-            <TaskQueue
-              tasks={displayTasks}
-              onAddTask={handleAddTask}
-              onUpdateTask={handleUpdateTask}
-              onDeleteTask={handleDeleteTask}
-              onScheduleTask={handleScheduleTask}
-              fullWidth
-            />
-          </div>
-        );
+
       case 'Bloques':
         return (
           <div className="flex-1 p-6 overflow-auto">

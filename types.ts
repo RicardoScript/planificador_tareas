@@ -49,4 +49,4 @@ export interface PlanResult {
   events: CalendarEvent[];
 }
 
-export type ViewType = 'Dashboard' | 'Tareas' | 'Bloques' | 'Plan';
+export type ViewType = 'Dashboard' | 'Bloques' | 'Plan';

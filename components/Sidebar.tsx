@@ -10,7 +10,6 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
   const navItems: { label: ViewType; icon: string; description: string }[] = [
     { label: 'Dashboard', icon: 'dashboard', description: 'Vista general' },
-    { label: 'Tareas', icon: 'assignment', description: 'Gestionar tareas' },
     { label: 'Bloques', icon: 'calendar_month', description: 'Definir horarios' },
     { label: 'Plan', icon: 'event_note', description: 'Ver plan generado' },
   ];
