@@ -22,12 +22,15 @@ const DAYS = [
 const BlocksManager: React.FC<BlocksManagerProps> = ({ blocks, onAddBlock, onUpdateBlock, onDeleteBlock }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
-  
+
   const [newBlockDay, setNewBlockDay] = useState(new Date().getDay());
   const [newBlockStart, setNewBlockStart] = useState('09:00');
   const [newBlockEnd, setNewBlockEnd] = useState('11:00');
   const [newBlockIsFixed, setNewBlockIsFixed] = useState(false);
   const [newBlockTitle, setNewBlockTitle] = useState('');
+
+  // Error state
+  const [errors, setErrors] = useState<{ start?: string; end?: string; title?: string }>({});
 
   const resetForm = () => {
     setNewBlockDay(new Date().getDay());
@@ -36,6 +39,7 @@ const BlocksManager: React.FC<BlocksManagerProps> = ({ blocks, onAddBlock, onUpd
     setNewBlockIsFixed(false);
     setNewBlockTitle('');
     setEditingBlockId(null);
+    setErrors({});
     setShowForm(false);
   };
 
@@ -46,27 +50,44 @@ const BlocksManager: React.FC<BlocksManagerProps> = ({ blocks, onAddBlock, onUpd
     setNewBlockIsFixed(!!block.isFixed);
     setNewBlockTitle(block.title || '');
     setEditingBlockId(block.id);
+    setErrors({});
     setShowForm(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newBlockStart < newBlockEnd) {
-      const blockData = {
-        dayOfWeek: newBlockDay,
-        startTime: newBlockStart,
-        endTime: newBlockEnd,
-        isFixed: newBlockIsFixed,
-        title: newBlockIsFixed ? newBlockTitle : undefined
-      };
+    const newErrors: { start?: string; end?: string; title?: string } = {};
 
-      if (editingBlockId) {
-        onUpdateBlock(editingBlockId, blockData);
-      } else {
-        onAddBlock(blockData);
-      }
-      resetForm();
+    if (!newBlockStart) newErrors.start = 'Requerido';
+    if (!newBlockEnd) newErrors.end = 'Requerido';
+
+    if (newBlockStart && newBlockEnd && newBlockStart >= newBlockEnd) {
+      newErrors.end = 'La hora fin debe ser mayor a la hora inicio';
     }
+
+    if (newBlockIsFixed && !newBlockTitle.trim()) {
+      newErrors.title = 'El nombre de la clase es obligatorio';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    const blockData = {
+      dayOfWeek: newBlockDay,
+      startTime: newBlockStart,
+      endTime: newBlockEnd,
+      isFixed: newBlockIsFixed,
+      title: newBlockIsFixed ? newBlockTitle : undefined
+    };
+
+    if (editingBlockId) {
+      onUpdateBlock(editingBlockId, blockData);
+    } else {
+      onAddBlock(blockData);
+    }
+    resetForm();
   };
 
   const formatTime = (time: string): string => {
@@ -89,7 +110,7 @@ const BlocksManager: React.FC<BlocksManagerProps> = ({ blocks, onAddBlock, onUpd
   // Group blocks by day
   const blocksByDay = DAYS.map(day => ({
     ...day,
-    blocks: blocks.filter(b => b.dayOfWeek === day.value).sort((a, b) => 
+    blocks: blocks.filter(b => b.dayOfWeek === day.value).sort((a, b) =>
       a.startTime.localeCompare(b.startTime)
     )
   })).filter(d => d.blocks.length > 0);
@@ -134,18 +155,28 @@ const BlocksManager: React.FC<BlocksManagerProps> = ({ blocks, onAddBlock, onUpd
                 <input
                   type="time"
                   value={newBlockStart}
-                  onChange={(e) => setNewBlockStart(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  onChange={(e) => {
+                    setNewBlockStart(e.target.value);
+                    if (errors.start) setErrors({ ...errors, start: undefined });
+                  }}
+                  className={`w-full border rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${errors.start ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                    }`}
                 />
+                {errors.start && <span className="text-[10px] text-red-500 font-medium ml-1">{errors.start}</span>}
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Fin</label>
                 <input
                   type="time"
                   value={newBlockEnd}
-                  onChange={(e) => setNewBlockEnd(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  onChange={(e) => {
+                    setNewBlockEnd(e.target.value);
+                    if (errors.end) setErrors({ ...errors, end: undefined });
+                  }}
+                  className={`w-full border rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${errors.end ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                    }`}
                 />
+                {errors.end && <span className="text-[10px] text-red-500 font-medium ml-1">{errors.end}</span>}
               </div>
             </div>
 
@@ -167,10 +198,15 @@ const BlocksManager: React.FC<BlocksManagerProps> = ({ blocks, onAddBlock, onUpd
                 <input
                   type="text"
                   value={newBlockTitle}
-                  onChange={(e) => setNewBlockTitle(e.target.value)}
+                  onChange={(e) => {
+                    setNewBlockTitle(e.target.value);
+                    if (errors.title) setErrors({ ...errors, title: undefined });
+                  }}
                   placeholder="Ej: Matemáticas 101"
-                  className="w-full border border-gray-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className={`w-full border rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${errors.title ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                    }`}
                 />
+                {errors.title && <span className="text-[10px] text-red-500 font-medium ml-1">{errors.title}</span>}
               </div>
             )}
 

@@ -9,7 +9,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
   const navItems: { label: ViewType; icon: string; description: string }[] = [
-    { label: 'Dashboard', icon: 'dashboard', description: 'Vista general' },
+    { label: 'Dashboard', icon: 'dashboard', description: 'Gestionar Tareas' },
     { label: 'Bloques', icon: 'calendar_month', description: 'Definir horarios' },
     { label: 'Plan', icon: 'event_note', description: 'Ver plan generado' },
   ];
@@ -32,20 +32,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
             <button
               key={item.label}
               onClick={() => onViewChange(item.label)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                currentView === item.label
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${currentView === item.label
                   ? 'bg-blue-50 text-blue-600 shadow-sm'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
+                }`}
             >
-              <span className={`material-symbols-outlined text-[20px] ${
-                currentView === item.label ? 'text-blue-600' : 'text-gray-400'
-              }`}>{item.icon}</span>
+              <span className={`material-symbols-outlined text-[20px] ${currentView === item.label ? 'text-blue-600' : 'text-gray-400'
+                }`}>{item.icon}</span>
               <div className="text-left">
                 <div>{item.label}</div>
-                <div className={`text-[10px] ${
-                  currentView === item.label ? 'text-blue-400' : 'text-gray-400'
-                }`}>{item.description}</div>
+                <div className={`text-[10px] ${currentView === item.label ? 'text-blue-400' : 'text-gray-400'
+                  }`}>{item.description}</div>
               </div>
             </button>
           ))}

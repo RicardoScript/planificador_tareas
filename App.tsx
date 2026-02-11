@@ -173,6 +173,13 @@ const App: React.FC = () => {
     setPlanGenerated(false);
   };
 
+  const handleUpdateBlock = (id: string, block: Omit<TimeBlock, 'id'>) => {
+    setBlocks(prev => prev.map(b =>
+      b.id === id ? { ...b, ...block } : b
+    ));
+    setPlanGenerated(false);
+  };
+
   const handleDeleteBlock = (id: string) => {
     setBlocks(prev => prev.filter(b => b.id !== id));
     setPlanGenerated(false);
@@ -194,10 +201,10 @@ const App: React.FC = () => {
 
   // Format today's date
   const formatDate = (date: Date): string => {
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'long', 
-      day: 'numeric', 
-      month: 'long' 
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long'
     };
     const formatted = date.toLocaleDateString('es-ES', options);
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
@@ -212,6 +219,7 @@ const App: React.FC = () => {
             <BlocksManager
               blocks={blocks}
               onAddBlock={handleAddBlock}
+              onUpdateBlock={handleUpdateBlock}
               onDeleteBlock={handleDeleteBlock}
             />
           </div>
@@ -219,7 +227,7 @@ const App: React.FC = () => {
       case 'Plan':
         return (
           <div className="flex-1 overflow-hidden">
-            <CalendarView 
+            <CalendarView
               blocks={blocks}
               scheduledTasks={planResult?.scheduledTasks || []}
               conflicts={planResult?.conflicts || []}
@@ -240,7 +248,7 @@ const App: React.FC = () => {
               onDeleteTask={handleDeleteTask}
               onScheduleTask={handleScheduleTask}
             />
-            <CalendarView 
+            <CalendarView
               blocks={blocks}
               scheduledTasks={planResult?.scheduledTasks || []}
               conflicts={planResult?.conflicts || []}
@@ -275,7 +283,7 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-white">
       <Sidebar currentView={currentView} onViewChange={setCurrentView} />
-      
+
       <main className="flex-1 flex flex-col min-w-0">
         <Header
           title={formatDate(selectedDate)}
@@ -284,7 +292,7 @@ const App: React.FC = () => {
           onOpenTutorial={() => setShowTutorial(true)}
           planGenerated={planGenerated}
         />
-        
+
         {renderContent()}
       </main>
 
@@ -320,19 +328,19 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ task, onClose, onSave, fo
   const [editDuration, setEditDuration] = useState(task.durationMinutes);
   const [editPriority, setEditPriority] = useState<TaskPriority>(task.priority);
   const [editDeadline, setEditDeadline] = useState(formatDateForInput(task.deadline));
-  
+
   const [isFixed, setIsFixed] = useState(!!task.fixedSlot);
   const [fixedTime, setFixedTime] = useState(task.fixedSlot?.startTime || '09:00');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editTitle.trim() && editDeadline) {
-      
+
       let fixedSlot = undefined;
       if (isFixed) {
-          fixedSlot = {
-              startTime: fixedTime
-          };
+        fixedSlot = {
+          startTime: fixedTime
+        };
       }
 
       onSave({
@@ -348,7 +356,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ task, onClose, onSave, fo
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div 
+      <div
         className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
@@ -399,29 +407,29 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ task, onClose, onSave, fo
           </div>
 
           <div>
-             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2 cursor-pointer">
-                <input 
-                    type="checkbox" 
-                    checked={isFixed} 
-                    onChange={(e) => setIsFixed(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300"
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isFixed}
+                onChange={(e) => setIsFixed(e.target.checked)}
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300"
+              />
+              Fijar horario manualmente
+            </label>
+
+            {isFixed && (
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 animate-fade-in">
+                <label className="block text-xs font-bold text-blue-700 uppercase mb-1">Hora de inicio</label>
+                <input
+                  type="time"
+                  value={fixedTime}
+                  onChange={(e) => setFixedTime(e.target.value)}
+                  className="w-full border border-blue-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  required={isFixed}
                 />
-                Fijar horario manualmente
-             </label>
-             
-             {isFixed && (
-                 <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 animate-fade-in">
-                     <label className="block text-xs font-bold text-blue-700 uppercase mb-1">Hora de inicio</label>
-                     <input
-                        type="time"
-                        value={fixedTime}
-                        onChange={(e) => setFixedTime(e.target.value)}
-                        className="w-full border border-blue-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                        required={isFixed}
-                     />
-                     <p className="text-[10px] text-blue-600 mt-1">La tarea se asignará a esta hora ignorando la prioridad.</p>
-                 </div>
-             )}
+                <p className="text-[10px] text-blue-600 mt-1">La tarea se asignará a esta hora ignorando la prioridad.</p>
+              </div>
+            )}
           </div>
 
           <div>
@@ -432,11 +440,10 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({ task, onClose, onSave, fo
                   key={p}
                   type="button"
                   onClick={() => setEditPriority(p)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-                    editPriority === p
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${editPriority === p
                       ? getPriorityColor(p)
                       : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   {p}
                 </button>

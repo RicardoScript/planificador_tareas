@@ -28,36 +28,53 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
   const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>('Media');
   const [newTaskDeadline, setNewTaskDeadline] = useState('');
   const [activeFilter, setActiveFilter] = useState<'Todas' | 'Pendientes' | 'Conflictos'>('Todas');
-  
+
   // Selection state
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
-  
+
   // Modal states
   const [scheduleModalTask, setScheduleModalTask] = useState<Task | null>(null);
   const [deleteModalTask, setDeleteModalTask] = useState<Task | null>(null);
   const [editModalTask, setEditModalTask] = useState<Task | null>(null);
-  
+
   // Edit form state
   const [editTitle, setEditTitle] = useState('');
   const [editDuration, setEditDuration] = useState(60);
   const [editPriority, setEditPriority] = useState<TaskPriority>('Media');
   const [editDeadline, setEditDeadline] = useState('');
 
+  // Error states
+  const [errors, setErrors] = useState<{ title?: string; deadline?: string }>({});
+  const [editErrors, setEditErrors] = useState<{ title?: string; deadline?: string }>({});
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newTaskTitle.trim() && newTaskDeadline) {
-      onAddTask({
-        title: newTaskTitle,
-        deadline: new Date(newTaskDeadline),
-        durationMinutes: newTaskDuration,
-        priority: newTaskPriority
-      });
-      setNewTaskTitle('');
-      setNewTaskDuration(60);
-      setNewTaskPriority('Media');
-      setNewTaskDeadline('');
-      setShowForm(false);
+    const newErrors: { title?: string; deadline?: string } = {};
+
+    if (!newTaskTitle.trim()) {
+      newErrors.title = 'El título es obligatorio';
     }
+    if (!newTaskDeadline) {
+      newErrors.deadline = 'La fecha límite es obligatoria';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    onAddTask({
+      title: newTaskTitle,
+      deadline: new Date(newTaskDeadline),
+      durationMinutes: newTaskDuration,
+      priority: newTaskPriority
+    });
+    setNewTaskTitle('');
+    setNewTaskDuration(60);
+    setNewTaskPriority('Media');
+    setNewTaskDeadline('');
+    setErrors({});
+    setShowForm(false);
   };
 
   // Toggle task selection
@@ -105,12 +122,27 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
     setEditPriority(task.priority);
     setEditDeadline(formatDateForInput(task.deadline));
     setEditModalTask(task);
+    setEditErrors({}); // Clear previous errors
   };
 
   // Submit edit
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (editModalTask && onUpdateTask && editTitle.trim() && editDeadline) {
+
+    const newErrors: { title?: string; deadline?: string } = {};
+    if (!editTitle.trim()) {
+      newErrors.title = 'El título es obligatorio';
+    }
+    if (!editDeadline) {
+      newErrors.deadline = 'La fecha límite es obligatoria';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setEditErrors(newErrors);
+      return;
+    }
+
+    if (editModalTask && onUpdateTask) {
       onUpdateTask(editModalTask.id, {
         title: editTitle,
         deadline: new Date(editDeadline),
@@ -118,6 +150,7 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
         priority: editPriority
       });
       setEditModalTask(null);
+      setEditErrors({});
     }
   };
 
@@ -150,26 +183,26 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
 
   const formatDeadline = (date: Date): string => {
     const now = new Date();
-    const isToday = date.getDate() === now.getDate() && 
-                    date.getMonth() === now.getMonth() && 
-                    date.getFullYear() === now.getFullYear();
-    
+    const isToday = date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear();
+
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const isTomorrow = date.getDate() === tomorrow.getDate() && 
-                       date.getMonth() === tomorrow.getMonth() && 
-                       date.getFullYear() === tomorrow.getFullYear();
-    
+    const isTomorrow = date.getDate() === tomorrow.getDate() &&
+      date.getMonth() === tomorrow.getMonth() &&
+      date.getFullYear() === tomorrow.getFullYear();
+
     if (date < now) return 'Vencido';
-    
+
     if (isToday) {
       return `Hoy, ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
     }
-    
+
     if (isTomorrow) {
       return `Mañana, ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
     }
-    
+
     return date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   };
 
@@ -220,25 +253,36 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
             </button>
           ) : (
             <form onSubmit={handleSubmit} className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm space-y-3">
-              <input
-                type="text"
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                placeholder="Nombre de la tarea..."
-                className="w-full border border-gray-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                autoFocus
-              />
-              
+              <div className="space-y-1">
+                <input
+                  type="text"
+                  value={newTaskTitle}
+                  onChange={(e) => {
+                    setNewTaskTitle(e.target.value);
+                    if (errors.title) setErrors({ ...errors, title: undefined });
+                  }}
+                  placeholder="Nombre de la tarea..."
+                  className={`w-full border rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${errors.title ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                    }`}
+                  autoFocus
+                />
+                {errors.title && <span className="text-[10px] text-red-500 font-medium ml-1">{errors.title}</span>}
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Deadline</label>
                   <input
                     type="datetime-local"
                     value={newTaskDeadline}
-                    onChange={(e) => setNewTaskDeadline(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    required
+                    onChange={(e) => {
+                      setNewTaskDeadline(e.target.value);
+                      if (errors.deadline) setErrors({ ...errors, deadline: undefined });
+                    }}
+                    className={`w-full border rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${errors.deadline ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                      }`}
                   />
+                  {errors.deadline && <span className="text-[10px] text-red-500 font-medium ml-1">{errors.deadline}</span>}
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Duración (min)</label>
@@ -252,7 +296,7 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Prioridad</label>
                 <div className="flex gap-2">
@@ -261,18 +305,17 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
                       key={p}
                       type="button"
                       onClick={() => setNewTaskPriority(p)}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                        newTaskPriority === p
-                          ? getPriorityColor(p)
-                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                      }`}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${newTaskPriority === p
+                        ? getPriorityColor(p)
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}
                     >
                       {p}
                     </button>
                   ))}
                 </div>
               </div>
-              
+
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -322,11 +365,10 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
               <button
                 key={filter}
                 onClick={() => setActiveFilter(filter)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-                  activeFilter === filter
-                    ? 'bg-gray-800 text-white'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
-                }`}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${activeFilter === filter
+                  ? 'bg-gray-800 text-white'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
+                  }`}
               >
                 {filter}
                 {filter === 'Conflictos' && conflictCount > 0 && (
@@ -341,14 +383,14 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
 
         <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
           <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">COLA DE PRIORIDADES</h3>
-          
+
           {filteredTasks.length === 0 && (
             <div className="text-center py-8 text-gray-400">
               <span className="material-symbols-outlined text-4xl mb-2">check_circle</span>
               <p className="text-sm">No hay tareas pendientes</p>
             </div>
           )}
-          
+
           {filteredTasks.map(task => {
             const isSelected = selectedTaskIds.has(task.id);
             return (
@@ -361,15 +403,14 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
                   {/* Selection Checkbox */}
                   <button
                     onClick={(e) => handleToggleSelect(task.id, e)}
-                    className={`w-5 h-5 rounded border-2 mt-0.5 transition-all flex items-center justify-center shrink-0 ${
-                      isSelected
-                        ? 'bg-blue-600 border-blue-600'
-                        : task.status === 'conflict' || task.status === 'expired'
+                    className={`w-5 h-5 rounded border-2 mt-0.5 transition-all flex items-center justify-center shrink-0 ${isSelected
+                      ? 'bg-blue-600 border-blue-600'
+                      : task.status === 'conflict' || task.status === 'expired'
                         ? 'border-red-300 hover:border-red-400'
                         : task.status === 'scheduled'
-                        ? 'border-green-400 hover:border-green-500'
-                        : 'border-gray-300 hover:border-blue-400'
-                    }`}
+                          ? 'border-green-400 hover:border-green-500'
+                          : 'border-gray-300 hover:border-blue-400'
+                      }`}
                   >
                     {isSelected && (
                       <span className="material-symbols-outlined text-[14px] text-white font-bold">check</span>
@@ -380,12 +421,11 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
                   </button>
                   <div className="flex-1 overflow-hidden">
                     <div className="flex justify-between items-start gap-2">
-                      <h4 className={`text-sm font-semibold truncate ${
-                        task.status === 'expired' ? 'text-gray-400 line-through' :
+                      <h4 className={`text-sm font-semibold truncate ${task.status === 'expired' ? 'text-gray-400 line-through' :
                         task.status === 'conflict' ? 'text-red-900' :
-                        task.status === 'scheduled' ? 'text-green-800' :
-                        'text-gray-800'
-                      }`}>
+                          task.status === 'scheduled' ? 'text-green-800' :
+                            'text-gray-800'
+                        }`}>
                         {task.title}
                       </h4>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -407,16 +447,15 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
                         </button>
                       </div>
                     </div>
-                    
-                    <p className={`text-xs mt-0.5 ${
-                      task.status === 'expired' ? 'text-gray-400' :
+
+                    <p className={`text-xs mt-0.5 ${task.status === 'expired' ? 'text-gray-400' :
                       task.status === 'conflict' ? 'text-red-600 font-medium' :
-                      task.status === 'scheduled' ? 'text-green-600' :
-                      'text-gray-500'
-                    }`}>
+                        task.status === 'scheduled' ? 'text-green-600' :
+                          'text-gray-500'
+                      }`}>
                       {task.conflictMessage || (task.status === 'scheduled' ? '✓ Programada' : `Vence ${formatDeadline(task.deadline)}`)}
                     </p>
-                    
+
                     <div className="flex flex-wrap items-center gap-2 mt-3">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getPriorityColor(task.priority)}`}>
                         {task.priority}
@@ -443,7 +482,7 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
       {/* Schedule Confirmation Modal */}
       {scheduleModalTask && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setScheduleModalTask(null)}>
-          <div 
+          <div
             className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
@@ -494,7 +533,7 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
       {/* Delete Confirmation Modal */}
       {deleteModalTask && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setDeleteModalTask(null)}>
-          <div 
+          <div
             className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
@@ -537,7 +576,7 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
       {/* Edit Task Modal */}
       {editModalTask && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setEditModalTask(null)}>
-          <div 
+          <div
             className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
@@ -557,10 +596,14 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
                 <input
                   type="text"
                   value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  required
+                  onChange={(e) => {
+                    setEditTitle(e.target.value);
+                    if (editErrors.title) setEditErrors({ ...editErrors, title: undefined });
+                  }}
+                  className={`w-full border rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${editErrors.title ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                    }`}
                 />
+                {editErrors.title && <span className="text-[10px] text-red-500 font-medium ml-1">{editErrors.title}</span>}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -569,10 +612,14 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
                   <input
                     type="datetime-local"
                     value={editDeadline}
-                    onChange={(e) => setEditDeadline(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    required
+                    onChange={(e) => {
+                      setEditDeadline(e.target.value);
+                      if (editErrors.deadline) setEditErrors({ ...editErrors, deadline: undefined });
+                    }}
+                    className={`w-full border rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${editErrors.deadline ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                      }`}
                   />
+                  {editErrors.deadline && <span className="text-[10px] text-red-500 font-medium ml-1">{editErrors.deadline}</span>}
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Duración (min)</label>
@@ -595,11 +642,10 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
                       key={p}
                       type="button"
                       onClick={() => setEditPriority(p)}
-                      className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-                        editPriority === p
-                          ? getPriorityColor(p)
-                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                      }`}
+                      className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${editPriority === p
+                        ? getPriorityColor(p)
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}
                     >
                       {p}
                     </button>
