@@ -5,10 +5,11 @@ interface HeaderProps {
   title: string;
   conflictCount: number;
   onGeneratePlan: () => void;
+  onOpenTutorial: () => void;
   planGenerated?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ title, conflictCount, onGeneratePlan, planGenerated }) => {
+const Header: React.FC<HeaderProps> = ({ title, conflictCount, onGeneratePlan, onOpenTutorial, planGenerated }) => {
   return (
     <header className="flex items-center justify-between px-8 py-6 bg-white border-b border-gray-200">
       <div>
@@ -33,19 +34,30 @@ const Header: React.FC<HeaderProps> = ({ title, conflictCount, onGeneratePlan, p
         )}
       </div>
       
-      <button
-        onClick={onGeneratePlan}
-        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md active:scale-95 ${
-          planGenerated && conflictCount === 0
-            ? 'bg-green-600 hover:bg-green-700 text-white'
-            : 'bg-blue-600 hover:bg-blue-700 text-white'
-        }`}
-      >
-        <span className="material-symbols-outlined text-[18px]">
-          {planGenerated ? 'refresh' : 'auto_awesome'}
-        </span>
-        {planGenerated ? 'Regenerar Plan' : 'Generar Plan'}
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onOpenTutorial}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm text-gray-600 hover:bg-gray-100 transition-colors"
+          title="Ver tutorial"
+        >
+          <span className="material-symbols-outlined text-[20px]">help</span>
+          Ayuda
+        </button>
+
+        <button
+          onClick={onGeneratePlan}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md active:scale-95 ${
+            planGenerated && conflictCount === 0
+              ? 'bg-green-600 hover:bg-green-700 text-white'
+              : 'bg-blue-600 hover:bg-blue-700 text-white'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[18px]">
+            {planGenerated ? 'refresh' : 'auto_awesome'}
+          </span>
+          {planGenerated ? 'Regenerar Plan' : 'Generar Plan'}
+        </button>
+      </div>
     </header>
   );
 };

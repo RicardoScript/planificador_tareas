@@ -41,6 +41,28 @@ planificador_tareas/
 
 ---
 
+## 🧠 Estructuras de Datos y Algoritmos
+
+El núcleo del planificador (`scheduler.ts`) utiliza varias estructuras de datos eficientes para resolver el problema de asignación de horarios:
+
+### 1️⃣ Algoritmo Greedy (Voraz)
+El motor de planificación utiliza un enfoque **Greedy** para asignar tareas.
+* **Lógica**: Ordena las tareas por "urgencia" y asigna cada una al *primer* bloque de tiempo disponible que cumpla con los requisitos (duración y deadline).
+* **Justificación**: Es eficiente para problemas de planificación en tiempo real donde se busca una solución buena y rápida, aunque no necesariamente la matemáticamente perfecta.
+
+### 2️⃣ Priority Queue (Simulada)
+Para determinar qué tarea procesar primero, se utiliza una **Cola de Prioridad** lógica basada en un puntaje de urgencia calculada dinámicamente:
+* `Urgency Score = PriorityScore / HoursUntilDeadline`
+* Esto asegura que las tareas con alta prioridad y fechas límite cercanas se programen antes que las tareas de baja prioridad a largo plazo.
+
+### 3️⃣ Tipos de Datos Clave
+* **Arrays (`Task[]`, `TimeBlock[]`)**: Estructuras base para almacenar la lista de tareas y bloques de disponibilidad.
+* **Maps (`Map<string, BlockState>`)**: Se utiliza `Map` para rastrear el "tiempo restante" mutable de cada bloque durante el proceso de asignación, permitiendo acceso O(1) por ID de bloque.
+* **Sets (`Set<string>`)**: Se usa `Set` para rastrear los IDs de tareas ya asignadas (`assignedTaskIds`), garantizando unicidad y búsquedas O(1) para evitar duplicados.
+* **Grafos de Intervalos (Implícito)**: El sistema maneja intervalos de tiempo `[Start, End)` y detecta colisiones verificando superposiciones entre rangos ocupados y nuevos intentos de asignación.
+
+---
+
 ## 🧱 Arquitectura de la Solución
 
 El proyecto sigue una arquitectura **modular basada en componentes**, separando:

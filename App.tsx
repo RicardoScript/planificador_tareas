@@ -5,6 +5,7 @@ import Header from './components/Header';
 import TaskQueue from './components/TaskQueue';
 import CalendarView from './components/CalendarView';
 import BlocksManager from './components/BlocksManager';
+import TutorialModal from './components/TutorialModal';
 import { Task, ViewType, TimeBlock, TaskPriority } from './types';
 import { generatePlan, applySchedulingResults } from './scheduler';
 
@@ -95,6 +96,7 @@ const App: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [planGenerated, setPlanGenerated] = useState(false);
   const [editTaskFromCalendar, setEditTaskFromCalendar] = useState<Task | null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Generate plan whenever tasks or blocks change (but only if plan was generated)
   const planResult = useMemo(() => {
@@ -279,6 +281,7 @@ const App: React.FC = () => {
           title={formatDate(selectedDate)}
           conflictCount={conflicts}
           onGeneratePlan={handleGeneratePlan}
+          onOpenTutorial={() => setShowTutorial(true)}
           planGenerated={planGenerated}
         />
         
@@ -294,6 +297,10 @@ const App: React.FC = () => {
           formatDateForInput={formatDateForInput}
           getPriorityColor={getPriorityColor}
         />
+      )}
+
+      {showTutorial && (
+        <TutorialModal onClose={() => setShowTutorial(false)} />
       )}
     </div>
   );

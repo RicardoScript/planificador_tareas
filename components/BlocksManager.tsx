@@ -5,6 +5,7 @@ import { TimeBlock } from '../types';
 interface BlocksManagerProps {
   blocks: TimeBlock[];
   onAddBlock: (block: Omit<TimeBlock, 'id'>) => void;
+  onUpdateBlock: (id: string, block: Omit<TimeBlock, 'id'>) => void;
   onDeleteBlock: (id: string) => void;
 }
 
@@ -18,27 +19,53 @@ const DAYS = [
   { value: 6, label: 'Sábado' }
 ];
 
-const BlocksManager: React.FC<BlocksManagerProps> = ({ blocks, onAddBlock, onDeleteBlock }) => {
+const BlocksManager: React.FC<BlocksManagerProps> = ({ blocks, onAddBlock, onUpdateBlock, onDeleteBlock }) => {
   const [showForm, setShowForm] = useState(false);
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  
   const [newBlockDay, setNewBlockDay] = useState(new Date().getDay());
   const [newBlockStart, setNewBlockStart] = useState('09:00');
   const [newBlockEnd, setNewBlockEnd] = useState('11:00');
   const [newBlockIsFixed, setNewBlockIsFixed] = useState(false);
   const [newBlockTitle, setNewBlockTitle] = useState('');
 
+  const resetForm = () => {
+    setNewBlockDay(new Date().getDay());
+    setNewBlockStart('09:00');
+    setNewBlockEnd('11:00');
+    setNewBlockIsFixed(false);
+    setNewBlockTitle('');
+    setEditingBlockId(null);
+    setShowForm(false);
+  };
+
+  const handleEditClick = (block: TimeBlock) => {
+    setNewBlockDay(block.dayOfWeek);
+    setNewBlockStart(block.startTime);
+    setNewBlockEnd(block.endTime);
+    setNewBlockIsFixed(!!block.isFixed);
+    setNewBlockTitle(block.title || '');
+    setEditingBlockId(block.id);
+    setShowForm(true);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newBlockStart < newBlockEnd) {
-      onAddBlock({
+      const blockData = {
         dayOfWeek: newBlockDay,
         startTime: newBlockStart,
         endTime: newBlockEnd,
         isFixed: newBlockIsFixed,
         title: newBlockIsFixed ? newBlockTitle : undefined
-      });
-      setShowForm(false);
-      setNewBlockTitle('');
-      setNewBlockIsFixed(false);
+      };
+
+      if (editingBlockId) {
+        onUpdateBlock(editingBlockId, blockData);
+      } else {
+        onAddBlock(blockData);
+      }
+      resetForm();
     }
   };
 
@@ -75,7 +102,7 @@ const BlocksManager: React.FC<BlocksManagerProps> = ({ blocks, onAddBlock, onDel
           <p className="text-gray-500 text-sm mt-1">Define tus horarios disponibles y clases fijas</p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => { resetForm(); setShowForm(true); }}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-semibold text-sm transition-all shadow-md"
         >
           <span className="material-symbols-outlined text-[18px]">add</span>
@@ -85,7 +112,9 @@ const BlocksManager: React.FC<BlocksManagerProps> = ({ blocks, onAddBlock, onDel
 
       {showForm && (
         <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Crear Nuevo Bloque</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            {editingBlockId ? 'Editar Bloque' : 'Crear Nuevo Bloque'}
+          </h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-3 gap-4">
               <div>
@@ -148,7 +177,7 @@ const BlocksManager: React.FC<BlocksManagerProps> = ({ blocks, onAddBlock, onDel
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
+                onClick={resetForm}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
               >
                 Cancelar
@@ -157,7 +186,7 @@ const BlocksManager: React.FC<BlocksManagerProps> = ({ blocks, onAddBlock, onDel
                 type="submit"
                 className="px-6 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
               >
-                Crear Bloque
+                {editingBlockId ? 'Guardar Cambios' : 'Crear Bloque'}
               </button>
             </div>
           </form>
@@ -194,15 +223,18 @@ const BlocksManager: React.FC<BlocksManagerProps> = ({ blocks, onAddBlock, onDel
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${
-                        block.isFixed ? 'bg-gray-100 text-gray-600' : 'bg-emerald-100 text-emerald-700'
-                      }`}>
-                        {block.isFixed ? 'Fijo' : 'Libre'}
-                      </span>
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleEditClick(block)}
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Editar bloque"
+                      >
+                        <span className="material-symbols-outlined text-[20px]">edit</span>
+                      </button>
                       <button
                         onClick={() => onDeleteBlock(block.id)}
-                        className="p-1 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Eliminar bloque"
                       >
                         <span className="material-symbols-outlined text-[20px]">delete</span>
                       </button>

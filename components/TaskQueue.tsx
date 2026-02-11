@@ -150,16 +150,27 @@ const TaskQueue: React.FC<TaskQueueProps> = ({ tasks, onAddTask, onUpdateTask, o
 
   const formatDeadline = (date: Date): string => {
     const now = new Date();
-    const diffHours = (date.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const isToday = date.getDate() === now.getDate() && 
+                    date.getMonth() === now.getMonth() && 
+                    date.getFullYear() === now.getFullYear();
     
-    if (diffHours < 0) return 'Vencido';
-    if (diffHours < 24) {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTomorrow = date.getDate() === tomorrow.getDate() && 
+                       date.getMonth() === tomorrow.getMonth() && 
+                       date.getFullYear() === tomorrow.getFullYear();
+    
+    if (date < now) return 'Vencido';
+    
+    if (isToday) {
       return `Hoy, ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
     }
-    if (diffHours < 48) {
+    
+    if (isTomorrow) {
       return `Mañana, ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
     }
-    return date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+    
+    return date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   };
 
   const formatDuration = (minutes: number): string => {
